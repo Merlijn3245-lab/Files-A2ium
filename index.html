@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VaultDrop — Private Storage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg0: #000000;
+    --bg1: #0a0a0f;
+    --bg2: #111118;
+    --bg3: #1a1a24;
+    --bg4: #22222f;
+    --border: rgba(255,255,255,0.08);
+    --border-hover: rgba(255,255,255,0.16);
+    --accent: #6c63ff;
+    --accent2: #a78bfa;
+    --accent-glow: rgba(108,99,255,0.25);
+    --text0: #ffffff;
+    --text1: rgba(255,255,255,0.85);
+    --text2: rgba(255,255,255,0.5);
+    --text3: rgba(255,255,255,0.3);
+    --danger: #ef4444;
+    --success: #22c55e;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg0);
+    color: var(--text1);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 60% 40% at 20% 10%, rgba(108,99,255,0.12) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 40% at 80% 80%, rgba(167,139,250,0.08) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  #particles { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+
+  .app {
+    position: relative;
+    z-index: 1;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 32px;
+  }
+
+  .logo {
+    display: flex; align-items: center; gap: 10px;
+    font-weight: 600; font-size: 18px; color: var(--text0); letter-spacing: -0.5px;
+  }
+  .logo-icon {
+    width: 32px; height: 32px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
+  .logo span { color: var(--accent2); }
+
+  .header-right { display: flex; align-items: center; gap: 12px; }
+
+  .btn {
+    display: flex; align-items: center; gap: 6px;
+    padding: 8px 16px; border-radius: 8px;
+    font-size: 13px; font-family: inherit; font-weight: 500;
+    cursor: pointer; border: 1px solid var(--border);
+    background: var(--bg3); color: var(--text1);
+    transition: all 0.2s; white-space: nowrap;
+  }
+  .btn:hover { border-color: var(--border-hover); background: var(--bg4); }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-color: transparent; color: #fff;
+  }
+  .btn-primary:hover { opacity: 0.9; border-color: transparent; }
+
+  .admin-badge {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #fff; font-size: 11px; font-weight: 600;
+    padding: 3px 10px; border-radius: 100px; letter-spacing: 0.5px; display: none;
+  }
+
+  /* Config banner — shown until API URL is set */
+  .config-banner {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px; margin-bottom: 24px;
+  }
+  .config-banner h3 { font-size: 13px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
+  .config-banner p { font-size: 13px; color: var(--text2); margin-bottom: 16px; line-height: 1.6; }
+  .config-banner input {
+    width: 100%; background: var(--bg3); border: 1px solid var(--border);
+    color: var(--text1); padding: 10px 14px; border-radius: 8px;
+    font-size: 14px; font-family: 'JetBrains Mono', monospace;
+    outline: none; margin-bottom: 10px; transition: border-color 0.2s;
+  }
+  .config-banner input:focus { border-color: var(--accent); }
+
+  .breadcrumb {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 13px; color: var(--text2); margin-bottom: 20px; flex-wrap: wrap;
+  }
+  .breadcrumb-item { cursor: pointer; color: var(--text2); transition: color 0.2s; }
+  .breadcrumb-item:hover { color: var(--accent2); }
+  .breadcrumb-item.active { color: var(--text1); cursor: default; }
+  .breadcrumb-sep { color: var(--text3); }
+
+  .toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+  .toolbar-left { display: flex; gap: 10px; flex: 1; flex-wrap: wrap; }
+
+  .admin-only { display: none; }
+  .admin-only.visible { display: flex; }
+
+  .search-wrap { position: relative; margin-left: auto; }
+  .search-wrap input {
+    background: var(--bg3); border: 1px solid var(--border); color: var(--text1);
+    padding: 8px 14px 8px 36px; border-radius: 8px; font-size: 13px; font-family: inherit;
+    width: 220px; transition: all 0.2s; outline: none;
+  }
+  .search-wrap input::placeholder { color: var(--text3); }
+  .search-wrap input:focus { border-color: var(--accent); background: var(--bg2); }
+  .search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text3); font-size: 14px; pointer-events: none; }
+
+  .file-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-bottom: 24px; }
+
+  .file-card {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px; cursor: pointer;
+    transition: all 0.2s; position: relative; overflow: hidden;
+  }
+  .file-card::before {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(circle at top left, var(--accent-glow), transparent 60%);
+    opacity: 0; transition: opacity 0.3s;
+  }
+  .file-card:hover { border-color: var(--border-hover); transform: translateY(-1px); }
+  .file-card:hover::before { opacity: 1; }
+
+  .file-icon { font-size: 32px; margin-bottom: 10px; display: block; line-height: 1; }
+  .file-name {
+    font-size: 13px; font-weight: 500; color: var(--text0);
+    word-break: break-all; margin-bottom: 4px;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .file-meta { font-size: 11px; color: var(--text3); font-family: 'JetBrains Mono', monospace; }
+
+  .file-actions { position: absolute; top: 8px; right: 8px; display: flex; gap: 4px; opacity: 0; transition: opacity 0.2s; }
+  .file-card:hover .file-actions { opacity: 1; }
+
+  .file-action-btn {
+    width: 28px; height: 28px; border-radius: 6px; border: 1px solid var(--border);
+    background: var(--bg1); color: var(--text2); cursor: pointer;
+    display: flex; align-items: center; justify-content: center; font-size: 13px; transition: all 0.15s;
+  }
+  .file-action-btn:hover { color: var(--text0); border-color: var(--border-hover); }
+  .file-action-btn.danger:hover { color: var(--danger); border-color: var(--danger); }
+  .file-action-btn.share:hover { color: var(--accent2); border-color: var(--accent2); }
+
+  .empty-state { text-align: center; padding: 80px 40px; color: var(--text3); }
+  .empty-state .empty-icon { font-size: 48px; margin-bottom: 16px; display: block; }
+  .empty-state h3 { font-size: 16px; font-weight: 500; color: var(--text2); margin-bottom: 8px; }
+
+  .status-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 0; border-top: 1px solid var(--border);
+    font-size: 12px; color: var(--text3); font-family: 'JetBrains Mono', monospace; margin-top: 8px;
+  }
+
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.75);
+    backdrop-filter: blur(4px); display: flex; align-items: center;
+    justify-content: center; z-index: 100; padding: 20px;
+  }
+  .modal {
+    background: var(--bg2); border: 1px solid var(--border-hover);
+    border-radius: 16px; padding: 28px; width: 100%; max-width: 400px;
+  }
+  .modal h2 { font-size: 17px; font-weight: 600; color: var(--text0); margin-bottom: 20px; }
+
+  .form-group { margin-bottom: 16px; }
+  .form-group label {
+    display: block; font-size: 12px; color: var(--text2); margin-bottom: 6px;
+    font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .form-group input {
+    width: 100%; background: var(--bg3); border: 1px solid var(--border);
+    color: var(--text1); padding: 10px 14px; border-radius: 8px;
+    font-size: 14px; font-family: inherit; outline: none; transition: border-color 0.2s;
+  }
+  .form-group input:focus { border-color: var(--accent); }
+  .form-group input::placeholder { color: var(--text3); }
+
+  .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+  .modal-actions .btn { flex: 1; justify-content: center; }
+
+  .drop-zone {
+    border: 2px dashed var(--border); border-radius: 12px; padding: 40px 20px;
+    text-align: center; cursor: pointer; transition: all 0.2s; margin-bottom: 16px;
+  }
+  .drop-zone.drag-over { border-color: var(--accent); background: var(--accent-glow); }
+  .drop-zone p { font-size: 13px; color: var(--text2); margin-top: 8px; }
+  .drop-zone .dz-icon { font-size: 32px; color: var(--text3); margin-bottom: 8px; display: block; }
+  #file-input { display: none; }
+
+  .upload-progress { background: var(--bg3); border-radius: 8px; overflow: hidden; margin-top: 12px; display: none; }
+  .upload-progress-bar { height: 4px; background: linear-gradient(90deg, var(--accent), var(--accent2)); width: 0%; transition: width 0.3s; }
+  .upload-status { padding: 8px 12px; font-size: 12px; color: var(--text2); font-family: 'JetBrains Mono', monospace; }
+
+  .share-link-box {
+    background: var(--bg3); border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px 14px; font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    color: var(--accent2); word-break: break-all; margin: 12px 0; cursor: pointer; transition: border-color 0.2s;
+  }
+  .share-link-box:hover { border-color: var(--accent); }
+
+  #toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 200; display: flex; flex-direction: column; gap: 8px; }
+  .toast {
+    background: var(--bg3); border: 1px solid var(--border-hover); border-radius: 10px;
+    padding: 12px 16px; font-size: 13px; color: var(--text1); max-width: 320px;
+    animation: slideIn 0.25s ease; display: flex; align-items: center; gap: 8px;
+  }
+  .toast.success { border-color: var(--success); }
+  .toast.error { border-color: var(--danger); }
+
+  @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  @media (max-width: 600px) {
+    .file-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+    .search-wrap input { width: 160px; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="particles"></canvas>
+
+<div class="app">
+  <header>
+    <div class="logo">
+      <div class="logo-icon">🔒</div>
+      Vault<span>Drop</span>
+    </div>
+    <div class="header-right">
+      <span class="admin-badge" id="admin-badge">ADMIN</span>
+      <button class="btn" id="login-btn" onclick="showLoginModal()">Log in</button>
+      <button class="btn" id="logout-btn" style="display:none" onclick="logout()">Log out</button>
+    </div>
+  </header>
+
+  <!-- API URL setup banner -->
+  <div id="config-section" style="display:none">
+    <div class="config-banner">
+      <h3>⚙️ One-time setup</h3>
+      <p>
+        Enter the URL of your Vercel API. This is the only thing stored in your browser —
+        your Storj credentials live safely in Vercel environment variables.<br><br>
+        Your Vercel API URL looks like: <code style="color:var(--accent2)">https://your-project.vercel.app/api/sign</code>
+      </p>
+      <input type="text" id="cfg-api-url" placeholder="https://your-project.vercel.app/api/sign" />
+      <input type="text" id="cfg-site-url" placeholder="Site URL for share links (e.g. https://yourname.github.io/vaultdrop)" />
+      <input type="password" id="cfg-admin-pass" placeholder="Admin password (must match ADMIN_PASSWORD env var on Vercel)" />
+      <button class="btn btn-primary" style="margin-top:4px" onclick="saveConfig()">💾 Save & connect</button>
+    </div>
+  </div>
+
+  <!-- Main file browser -->
+  <div id="main-section" style="display:none">
+    <div class="breadcrumb" id="breadcrumb">
+      <span class="breadcrumb-item active" onclick="listFiles('')">🏠 Home</span>
+    </div>
+
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <button class="btn btn-primary admin-only" onclick="showUploadModal()">⬆ Upload</button>
+        <button class="btn admin-only" onclick="showNewFolderModal()">📁 New folder</button>
+      </div>
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="search-input" placeholder="Search files…" oninput="filterFiles(this.value)" />
+      </div>
+    </div>
+
+    <div class="file-grid" id="file-grid"></div>
+    <div id="empty-state" class="empty-state" style="display:none">
+      <span class="empty-icon">📭</span>
+      <h3>Nothing here yet</h3>
+      <p id="empty-msg">This folder is empty.</p>
+    </div>
+
+    <div class="status-bar">
+      <span id="status-text">Ready</span>
+      <span id="total-size"></span>
+    </div>
+  </div>
+</div>
+
+<!-- Login Modal -->
+<div class="modal-overlay" id="login-modal" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+  <div class="modal">
+    <h2>🔐 Admin Login</h2>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="login-pass" placeholder="Enter admin password" onkeydown="if(event.key==='Enter')doLogin()" />
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="document.getElementById('login-modal').style.display='none'">Cancel</button>
+      <button class="btn btn-primary" onclick="doLogin()">Login</button>
+    </div>
+  </div>
+</div>
+
+<!-- Upload Modal -->
+<div class="modal-overlay" id="upload-modal" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+  <div class="modal" style="max-width:480px">
+    <h2>⬆ Upload File</h2>
+    <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()"
+         ondragover="event.preventDefault();this.classList.add('drag-over')"
+         ondragleave="this.classList.remove('drag-over')"
+         ondrop="handleDrop(event)">
+      <span class="dz-icon">📎</span>
+      <strong style="color:var(--text1);font-size:14px">Click or drop files here</strong>
+      <p>Any format · Up to 25 GB</p>
+      <input type="file" id="file-input" multiple onchange="handleFileSelect(this.files)" />
+    </div>
+    <div class="upload-progress" id="upload-progress">
+      <div class="upload-status" id="upload-status">Preparing…</div>
+      <div class="upload-progress-bar" id="upload-bar"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="document.getElementById('upload-modal').style.display='none'">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- New Folder Modal -->
+<div class="modal-overlay" id="folder-modal" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+  <div class="modal">
+    <h2>📁 New Folder</h2>
+    <div class="form-group">
+      <label>Folder Name</label>
+      <input type="text" id="folder-name" placeholder="My Folder" onkeydown="if(event.key==='Enter')createFolder()" />
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="document.getElementById('folder-modal').style.display='none'">Cancel</button>
+      <button class="btn btn-primary" onclick="createFolder()">Create</button>
+    </div>
+  </div>
+</div>
+
+<!-- Share Modal -->
+<div class="modal-overlay" id="share-modal" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+  <div class="modal">
+    <h2>🔗 Share Link</h2>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:4px">Anyone with this link can download the file:</p>
+    <div class="share-link-box" id="share-link-display" onclick="copyShareLink()">— loading —</div>
+    <p style="font-size:11px;color:var(--text3)">Click to copy</p>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="copyShareLink()">📋 Copy link</button>
+      <button class="btn" onclick="document.getElementById('share-modal').style.display='none'">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Confirm -->
+<div class="modal-overlay" id="delete-modal" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+  <div class="modal">
+    <h2>🗑 Delete</h2>
+    <p style="font-size:14px;color:var(--text2)">Delete <strong id="delete-name" style="color:var(--text0)"></strong>? This cannot be undone.</p>
+    <div class="modal-actions" style="margin-top:20px">
+      <button class="btn" onclick="document.getElementById('delete-modal').style.display='none'">Cancel</button>
+      <button class="btn" style="border-color:var(--danger);color:var(--danger)" onclick="confirmDelete()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+
+<script>
+// ─── Config ──────────────────────────────────────────────────────────────────
+let cfg = {};       // { apiUrl, siteUrl, adminPass }
+let isAdmin = false;
+let currentPath = '';
+let allItems = [];
+let pendingDeleteKey = null;
+let currentShareLink = '';
+
+function loadConfig() {
+  const saved = localStorage.getItem('vaultdrop_cfg2');
+  if (saved) { cfg = JSON.parse(saved); return !!cfg.apiUrl; }
+  return false;
+}
+
+function saveConfig() {
+  cfg = {
+    apiUrl:    document.getElementById('cfg-api-url').value.trim().replace(/\/$/, ''),
+    siteUrl:   document.getElementById('cfg-site-url').value.trim().replace(/\/$/, '') || window.location.origin + window.location.pathname.replace('index.html','').replace(/\/$/, ''),
+    adminPass: document.getElementById('cfg-admin-pass').value,
+  };
+  if (!cfg.apiUrl) { toast('Please enter your Vercel API URL.', 'error'); return; }
+  localStorage.setItem('vaultdrop_cfg2', JSON.stringify(cfg));
+  document.getElementById('config-section').style.display = 'none';
+  document.getElementById('main-section').style.display = 'block';
+  toast('Connected!', 'success');
+  listFiles('');
+}
+
+// ─── API helper ───────────────────────────────────────────────────────────────
+async function api(body) {
+  const headers = { 'Content-Type': 'application/json' };
+
+  // Add admin password only when logged in
+  if (isAdmin && cfg.adminPass) {
+    headers['x-admin-password'] = cfg.adminPass;
+  }
+
+  const res = await fetch(cfg.apiUrl, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error(err.error || res.statusText);
+  }
+
+  return res.json();
+}
+
+// ─── Auth ────────────────────────────────────────────────────────────────────
+function showLoginModal() {
+  document.getElementById('login-modal').style.display = 'flex';
+  setTimeout(() => document.getElementById('login-pass').focus(), 50);
+}
+
+function doLogin() {
+  const pass = document.getElementById('login-pass').value;
+  if (pass === cfg.adminPass) {
+    isAdmin = true;
+    sessionStorage.setItem('vaultdrop_admin', '1');
+    document.getElementById('login-modal').style.display = 'none';
+    document.getElementById('login-pass').value = '';
+    setAdminUI(true);
+    toast('Welcome, admin!', 'success');
+  } else {
+    toast('Wrong password', 'error');
+    document.getElementById('login-pass').select();
+  }
+}
+
+function logout() {
+  isAdmin = false;
+  sessionStorage.removeItem('vaultdrop_admin');
+  setAdminUI(false);
+  toast('Logged out');
+}
+
+function setAdminUI(admin) {
+  document.getElementById('admin-badge').style.display = admin ? 'flex' : 'none';
+  document.getElementById('login-btn').style.display  = admin ? 'none' : 'flex';
+  document.getElementById('logout-btn').style.display = admin ? 'flex' : 'none';
+  document.querySelectorAll('.admin-only').forEach(el => el.classList.toggle('visible', admin));
+  renderFiles(allItems);
+}
+
+// ─── List files ───────────────────────────────────────────────────────────────
+async function listFiles(path) {
+  if (path !== undefined) currentPath = path;
+  setStatus('Loading…');
+  document.getElementById('file-grid').innerHTML = '';
+  document.getElementById('empty-state').style.display = 'none';
+
+  const prefix = currentPath ? currentPath + '/' : '';
+  const query  = { 'list-type': '2', prefix, delimiter: '/' };
+
+  try {
+    const { url, headers } = await api({ action: 'sign-list', query });
+    const res = await fetch(url, { headers });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const xml = await res.text();
+    const doc = new DOMParser().parseFromString(xml, 'application/xml');
+
+    const folders = [...doc.querySelectorAll('CommonPrefixes Prefix')].map(el => {
+      const fullPath = el.textContent.replace(/\/$/, '');
+      return { type: 'folder', name: fullPath.split('/').pop(), key: fullPath };
+    });
+
+    const files = [...doc.querySelectorAll('Contents')].map(el => {
+      const key  = el.querySelector('Key').textContent;
+      const size = parseInt(el.querySelector('Size').textContent);
+      const name = key.split('/').pop();
+      if (!name || key.endsWith('/')) return null;
+      return { type: 'file', name, key, size };
+    }).filter(Boolean);
+
+    allItems = [...folders, ...files];
+    renderFiles(allItems);
+    updateBreadcrumb();
+    setStatus(`${allItems.length} items`);
+    const total = files.reduce((s, f) => s + (f.size || 0), 0);
+    document.getElementById('total-size').textContent = formatSize(total);
+  } catch (err) {
+    toast('Failed to load: ' + err.message, 'error');
+    setStatus('Error');
+  }
+}
+
+function filterFiles(q) {
+  const filtered = q ? allItems.filter(f => f.name.toLowerCase().includes(q.toLowerCase())) : allItems;
+  renderFiles(filtered);
+}
+
+function renderFiles(items) {
+  const grid  = document.getElementById('file-grid');
+  const empty = document.getElementById('empty-state');
+  if (!items.length) {
+    grid.innerHTML = '';
+    empty.style.display = 'block';
+    document.getElementById('empty-msg').textContent = allItems.length ? 'No results match your search.' : 'This folder is empty.';
+    return;
+  }
+  empty.style.display = 'none';
+  grid.innerHTML = items.map(item => {
+    if (item.type === 'folder') {
+      return `<div class="file-card folder" onclick="listFiles('${esc(item.key)}')">
+        <span class="file-icon">📁</span>
+        <div class="file-name">${esc(item.name)}</div>
+        <div class="file-meta">Folder</div>
+        ${isAdmin ? `<div class="file-actions">
+          <button class="file-action-btn danger" title="Delete folder" onclick="event.stopPropagation();promptDelete('${esc(item.key)}','${esc(item.name)}',true)">🗑</button>
+        </div>` : ''}
+      </div>`;
+    }
+    return `<div class="file-card" onclick="downloadFile('${esc(item.key)}','${esc(item.name)}')">
+      <span class="file-icon">${fileIcon(item.name)}</span>
+      <div class="file-name">${esc(item.name)}</div>
+      <div class="file-meta">${formatSize(item.size)}</div>
+      <div class="file-actions">
+        <button class="file-action-btn share" title="Copy share link" onclick="event.stopPropagation();showShareLink('${esc(item.key)}')">🔗</button>
+        ${isAdmin ? `<button class="file-action-btn danger" title="Delete" onclick="event.stopPropagation();promptDelete('${esc(item.key)}','${esc(item.name)}',false)">🗑</button>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ─── Upload ───────────────────────────────────────────────────────────────────
+function showUploadModal() {
+  document.getElementById('upload-modal').style.display = 'flex';
+  document.getElementById('upload-progress').style.display = 'none';
+}
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('drop-zone').classList.remove('drag-over');
+  handleFileSelect(e.dataTransfer.files);
+}
+function handleFileSelect(files) {
+  [...files].forEach(uploadFile);
+}
+
+async function uploadFile(file) {
+  const key    = (currentPath ? currentPath + '/' : '') + file.name;
+  const prog   = document.getElementById('upload-progress');
+  const bar    = document.getElementById('upload-bar');
+  const status = document.getElementById('upload-status');
+
+  prog.style.display = 'block';
+  status.textContent = `Uploading ${file.name} (${formatSize(file.size)})…`;
+  bar.style.width    = '0%';
+
+  try {
+    if (file.size > 50 * 1024 * 1024) {
+      await multipartUpload(file, key, bar, status);
+    } else {
+      const arrayBuffer = await file.arrayBuffer();
+      const hashBytes   = await crypto.subtle.digest('SHA-256', arrayBuffer);
+      const payloadHash = Array.from(new Uint8Array(hashBytes)).map(b => b.toString(16).padStart(2,'0')).join('');
+
+      const { url, headers } = await api({
+        action: 'sign-put', key,
+        contentType: file.type || 'application/octet-stream',
+        payloadHash,
+      });
+      const res = await fetch(url, { method: 'PUT', headers, body: arrayBuffer });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      bar.style.width = '100%';
+    }
+    status.textContent = `✅ ${file.name} uploaded!`;
+    toast(`Uploaded ${file.name}`, 'success');
+    await listFiles();
+  } catch (err) {
+    status.textContent = `❌ Failed: ${err.message}`;
+    toast('Upload failed: ' + err.message, 'error');
+  }
+}
+
+async function multipartUpload(file, key, bar, status) {
+  // Initiate
+  const { url: initUrl, headers: initH } = await api({ action: 'sign-multipart-init', key, contentType: file.type || 'application/octet-stream' });
+  const initRes = await fetch(initUrl, { method: 'POST', headers: initH });
+  if (!initRes.ok) throw new Error('Failed to initiate multipart upload');
+  const uploadId = new DOMParser().parseFromString(await initRes.text(), 'application/xml').querySelector('UploadId').textContent;
+
+  const chunkSize = 64 * 1024 * 1024;
+  const numParts  = Math.ceil(file.size / chunkSize);
+  const parts     = [];
+
+  for (let i = 0; i < numParts; i++) {
+    const chunk      = await file.slice(i * chunkSize, Math.min((i+1) * chunkSize, file.size)).arrayBuffer();
+    const hashBytes  = await crypto.subtle.digest('SHA-256', chunk);
+    const payloadHash = Array.from(new Uint8Array(hashBytes)).map(b => b.toString(16).padStart(2,'0')).join('');
+    const partNumber = i + 1;
+
+    status.textContent = `Uploading part ${partNumber}/${numParts}…`;
+    bar.style.width = `${Math.round((i / numParts) * 90)}%`;
+
+    const { url, headers } = await api({ action: 'sign-multipart-part', key, partNumber, uploadId, payloadHash });
+    const res = await fetch(url, { method: 'PUT', headers, body: chunk });
+    if (!res.ok) throw new Error(`Part ${partNumber} failed`);
+    parts.push({ partNum: partNumber, etag: res.headers.get('ETag') });
+  }
+
+  // Complete
+  const completeBody = `<CompleteMultipartUpload>${parts.map(p => `<Part><PartNumber>${p.partNum}</PartNumber><ETag>${p.etag}</ETag></Part>`).join('')}</CompleteMultipartUpload>`;
+  const { url: cUrl, headers: cH } = await api({ action: 'sign-multipart-complete', key, uploadId });
+  const cRes = await fetch(cUrl, { method: 'POST', headers: cH, body: completeBody });
+  if (!cRes.ok) throw new Error('Failed to complete multipart upload');
+  bar.style.width = '100%';
+}
+
+// ─── Download ─────────────────────────────────────────────────────────────────
+async function downloadFile(key, name) {
+  try {
+    const { url } = await api({ action: 'presign-get', key, expiresIn: 3600 });
+    const a = document.createElement('a');
+    a.href = url; a.download = name; a.click();
+    toast(`Downloading ${name}…`);
+  } catch (err) {
+    toast('Download failed: ' + err.message, 'error');
+  }
+}
+
+// ─── Share links ──────────────────────────────────────────────────────────────
+async function showShareLink(key) {
+  const encoded  = btoa(encodeURIComponent(key));
+  const siteUrl  = cfg.siteUrl || (window.location.origin + window.location.pathname.replace('index.html','').replace(/\/$/, ''));
+  currentShareLink = `${siteUrl}/file/${encoded}`;
+  document.getElementById('share-link-display').textContent = currentShareLink;
+  document.getElementById('share-modal').style.display = 'flex';
+}
+function copyShareLink() {
+  navigator.clipboard.writeText(currentShareLink).then(() => toast('Link copied!', 'success'));
+}
+
+// ─── Folder ───────────────────────────────────────────────────────────────────
+function showNewFolderModal() {
+  document.getElementById('folder-modal').style.display = 'flex';
+  setTimeout(() => document.getElementById('folder-name').focus(), 50);
+}
+
+async function createFolder() {
+  const name = document.getElementById('folder-name').value.trim().replace(/[\/\\]/g, '');
+  if (!name) return;
+  const key = (currentPath ? currentPath + '/' : '') + name + '/.keep';
+  try {
+    const { url, headers } = await api({ action: 'sign-put', key, contentType: 'application/octet-stream', payloadHash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855' });
+    const res = await fetch(url, { method: 'PUT', headers, body: new ArrayBuffer(0) });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    document.getElementById('folder-modal').style.display = 'none';
+    document.getElementById('folder-name').value = '';
+    toast(`Folder "${name}" created`, 'success');
+    await listFiles();
+  } catch (err) {
+    toast('Failed: ' + err.message, 'error');
+  }
+}
+
+// ─── Delete ───────────────────────────────────────────────────────────────────
+function promptDelete(key, name, isFolder) {
+  pendingDeleteKey = { key, name, isFolder };
+  document.getElementById('delete-name').textContent = name;
+  document.getElementById('delete-modal').style.display = 'flex';
+}
+
+async function confirmDelete() {
+  if (!pendingDeleteKey) return;
+  const { key, name, isFolder } = pendingDeleteKey;
+  document.getElementById('delete-modal').style.display = 'none';
+  try {
+    if (isFolder) {
+      await deleteFolder(key);
+    } else {
+      const { url, headers } = await api({ action: 'sign-delete', key });
+      await fetch(url, { method: 'DELETE', headers });
+    }
+    toast(`Deleted "${name}"`, 'success');
+    await listFiles();
+  } catch (err) {
+    toast('Delete failed: ' + err.message, 'error');
+  }
+  pendingDeleteKey = null;
+}
+
+async function deleteFolder(folderKey) {
+  const query = { 'list-type': '2', prefix: folderKey + '/' };
+  const { url, headers } = await api({ action: 'sign-list', query });
+  const res = await fetch(url, { headers });
+  const doc = new DOMParser().parseFromString(await res.text(), 'application/xml');
+  const keys = [...doc.querySelectorAll('Contents Key')].map(el => el.textContent);
+  for (const k of keys) {
+    const { url: dUrl, headers: dH } = await api({ action: 'sign-delete', key: k });
+    await fetch(dUrl, { method: 'DELETE', headers: dH });
+  }
+}
+
+// ─── Breadcrumb ───────────────────────────────────────────────────────────────
+function updateBreadcrumb() {
+  const parts = currentPath ? currentPath.split('/') : [];
+  let html    = `<span class="breadcrumb-item ${!currentPath ? 'active' : ''}" onclick="listFiles('')">🏠 Home</span>`;
+  let built   = '';
+  parts.forEach((part, i) => {
+    built += (built ? '/' : '') + part;
+    const isLast = i === parts.length - 1;
+    const path   = built;
+    html += `<span class="breadcrumb-sep">›</span>
+      <span class="breadcrumb-item ${isLast ? 'active' : ''}" onclick="listFiles('${esc(path)}')">${esc(part)}</span>`;
+  });
+  document.getElementById('breadcrumb').innerHTML = html;
+}
+
+// ─── File download page (/file/ENCODED) ───────────────────────────────────────
+async function handleFileRoute() {
+  const match = window.location.pathname.match(/\/file\/([^\/]+)/);
+  if (!match) return false;
+  try {
+    const key = decodeURIComponent(atob(match[1]));
+    document.body.innerHTML = `
+      <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#000;font-family:Inter,sans-serif;color:#fff;">
+        <div style="text-align:center;padding:40px;max-width:400px">
+          <div style="font-size:48px;margin-bottom:16px">📦</div>
+          <h2 style="font-size:20px;margin-bottom:8px">VaultDrop</h2>
+          <p style="color:rgba(255,255,255,0.5);font-size:14px;margin-bottom:24px">
+            You've been sent a file:<br>
+            <strong style="color:#a78bfa">${esc(key.split('/').pop())}</strong>
+          </p>
+          <button id="dl-btn" onclick="startDownload('${esc(key)}')"
+            style="background:linear-gradient(135deg,#6c63ff,#a78bfa);color:#fff;border:none;padding:12px 28px;border-radius:10px;font-size:15px;cursor:pointer;font-family:inherit">
+            ⬇ Download File
+          </button>
+          <p id="dl-status" style="margin-top:16px;font-size:12px;color:rgba(255,255,255,0.4)"></p>
+        </div>
+      </div>`;
+    return true;
+  } catch { return false; }
+}
+
+async function startDownload(key) {
+  document.getElementById('dl-btn').textContent = '⏳ Preparing…';
+  document.getElementById('dl-status').textContent = 'Generating secure link…';
+  try {
+    const { url } = await api({ action: 'presign-get', key, expiresIn: 3600 });
+    document.getElementById('dl-btn').textContent = '✅ Starting…';
+    window.location.href = url;
+  } catch (err) {
+    document.getElementById('dl-btn').textContent = 'Error';
+    document.getElementById('dl-status').textContent = 'Failed: ' + err.message;
+  }
+}
+
+// ─── Particles ────────────────────────────────────────────────────────────────
+function initParticles() {
+  const canvas = document.getElementById('particles');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+  window.addEventListener('resize', () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; });
+  const stars = Array.from({length: 120}, () => ({
+    x: Math.random() * canvas.width, y: Math.random() * canvas.height,
+    r: Math.random() * 1.2 + 0.3, o: Math.random() * 0.5 + 0.1, speed: Math.random() * 0.3 + 0.05
+  }));
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    stars.forEach(s => {
+      ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+      ctx.fillStyle = `rgba(167,139,250,${s.o})`; ctx.fill();
+      s.y += s.speed;
+      if (s.y > canvas.height) { s.y = 0; s.x = Math.random() * canvas.width; }
+    });
+    requestAnimationFrame(draw);
+  }
+  draw();
+}
+
+// ─── Utils ────────────────────────────────────────────────────────────────────
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function formatSize(bytes) {
+  if (!bytes) return '0 B';
+  const u = ['B','KB','MB','GB','TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(1024));
+  return (bytes / Math.pow(1024, i)).toFixed(i ? 1 : 0) + ' ' + u[i];
+}
+function fileIcon(name) {
+  const ext = name.split('.').pop().toLowerCase();
+  const m = { pdf:'📄', doc:'📝', docx:'📝', txt:'📃', jpg:'🖼', jpeg:'🖼', png:'🖼', gif:'🖼', webp:'🖼', svg:'🖼',
+    mp4:'🎬', mov:'🎬', avi:'🎬', mkv:'🎬', mp3:'🎵', wav:'🎵', flac:'🎵',
+    zip:'🗜', rar:'🗜', tar:'🗜', gz:'🗜', js:'💻', ts:'💻', py:'💻', html:'💻', css:'💻', json:'💻',
+    xls:'📊', xlsx:'📊', csv:'📊', ppt:'📋', pptx:'📋', exe:'⚙', iso:'💿' };
+  return m[ext] || '📦';
+}
+function toast(msg, type='') {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = ({ success:'✅', error:'❌' }[type] || 'ℹ️') + ' ' + msg;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+function setStatus(msg) { document.getElementById('status-text').textContent = msg; }
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+async function init() {
+  initParticles();
+  if (await handleFileRoute()) return;
+
+  if (!loadConfig()) {
+    document.getElementById('config-section').style.display = 'block';
+    return;
+  }
+
+  document.getElementById('main-section').style.display = 'block';
+  if (sessionStorage.getItem('vaultdrop_admin') === '1') { isAdmin = true; setAdminUI(true); }
+  await listFiles('');
+}
+
+window.addEventListener('load', init);
+</script>
+</body>
+</html>
